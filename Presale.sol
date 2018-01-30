@@ -1,7 +1,8 @@
 pragma solidity ^0.4.18;
 
-import "../node_modules/zeppelin-solidity/contracts/token/ERC20/MintableToken.sol";
+import "../node_modules/zeppelin-solidity/contracts/math/SafeMath.sol";
 import "../node_modules/zeppelin-solidity/contracts/lifecycle/Pausable.sol";
+import "./CryptoSagaCard.sol";
 
 /**
  * @title The smart contract for the pre-sale.
@@ -14,7 +15,7 @@ contract Presale is Pausable {
   address public wallet;
 
   // The token contract.
-  OriginCard public tokenContract;
+  CryptoSagaCard public cardContract;
 
   // Start and end timestamps where investments are allowed (both inclusive).
   uint256 public startTime;
@@ -53,7 +54,7 @@ contract Presale is Pausable {
   );
 
   // @dev Contructor.
-  function Presale(address _wallet, uint256 _startTime, uint256 _endTime, uint256 _price, uint256 _priceIncrease)
+  function Presale(address _wallet, address _cardAddress, uint256 _startTime, uint256 _endTime, uint256 _price, uint256 _priceIncrease)
     public
   {
     require(_endTime >= _startTime);
@@ -62,7 +63,7 @@ contract Presale is Pausable {
     require(_wallet != address(0));
     
     wallet = _wallet;
-    tokenContract = new OriginCard();
+    cardContract = CryptoSagaCard(_cardAddress);
     startTime = _startTime;
     endTime = _endTime;
     price = _price;
@@ -98,13 +99,6 @@ contract Presale is Pausable {
     return now > endTime;
   }
 
-  // @dev Fallback function can be used to buy tokens.
-  function () 
-    external
-    payable
-  {
-    buyTokens(msg.sender, 1);
-  }
 
   // @dev Low level token purchase function.
   function buyTokens(address _beneficiary, uint256 _amount)
@@ -126,7 +120,8 @@ contract Presale is Pausable {
     price = price.add(priceIncrease);
 
     // Mint tokens.
-    tokenContract.mint(_beneficiary, _amount);
+    // Rank 0 means Origin Card.
+    cardContract.mint(_beneficiary, _amount, 0);
 
     // Add count of tokens sold.
     soldCards += _amount;
@@ -153,7 +148,8 @@ contract Presale is Pausable {
     require(validRedeem());
 
     // Mint token.
-    tokenContract.mint(_beneficiary, 1);
+    // Rank 0 means Origin Card.
+    cardContract.mint(_beneficiary, 1, 0);
 
     // Add count of tokens redeemed.
     redeemedCards ++;
@@ -182,17 +178,5 @@ contract Presale is Pausable {
   {
     wallet.transfer(this.balance);
   }
-
-}
-
-/**
- * @title Origin Card.
- * @dev ERC20 Token that repesents Origin Cards.
- */
-contract OriginCard is MintableToken {
-
-  string public constant name = "Origin Card";
-  string public constant symbol = "ORGC";
-  uint8 public constant decimals = 0;
 
 }
